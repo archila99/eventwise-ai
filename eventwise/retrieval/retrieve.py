@@ -12,7 +12,7 @@ Pipeline per query:
    cross-page table partners) as context without re-ranking them.
 
 Command line:
-    python -m eventwise.retrieve "question" [-k 10] [--doc NAME] [--kind table] [--mode hybrid|bm25|dense]
+    python -m eventwise.retrieval "question" [-k 10] [--doc NAME] [--kind table] [--mode hybrid|bm25|dense]
 """
 
 from __future__ import annotations
@@ -29,11 +29,11 @@ from typing import Any, Iterable, Sequence
 import numpy as np
 from rank_bm25 import BM25Okapi
 
-from .config import DEFAULT_INDEX_DIR, RetrievalConfig
-from .embeddings import Embedder, cosine_scores
-from .index import IndexStore, LoadedIndex
+from ..config import DEFAULT_INDEX_DIR, RetrievalConfig
+from ..indexing.embeddings import Embedder, cosine_scores
+from ..indexing.index import IndexStore, LoadedIndex
 from .tokenize import tokenize
-from .units import IndexUnit
+from ..indexing.units import IndexUnit
 
 KINDS = ("heading", "text", "table", "figure")
 MODES = ("hybrid", "bm25", "dense")
@@ -529,8 +529,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--width", type=int, default=300, help="Characters of content to show per result")
     args = parser.parse_args(argv)
 
-    from .embeddings import SentenceTransformerEmbedder
-    from .index import IndexUnavailable
+    from ..indexing.embeddings import SentenceTransformerEmbedder
+    from ..indexing.index import IndexUnavailable
 
     t = time.perf_counter()
     try:

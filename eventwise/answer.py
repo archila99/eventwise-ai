@@ -6,11 +6,12 @@ a result uses ``RetrievedEvidence.citation``; a context item uses the primary
 index unit (document, page, section, label, location) via ``format_citation``.
 A context item with no indexed unit is not citable.
 
-Figure images are attached only when the question asks about a figure, chart,
-graph, plot, diagram, image, or photo, or when a retrieved figure — or a figure
-cited by a retrieved element — has no usable text and no extracted chart data.
-At most two images are sent. Run the CLI from the project root so image paths
-resolve.
+Figure images are attached when a retrieved figure — or a figure cited by a
+retrieved element — has no extracted chart data, and the question names a
+figure, chart, graph, plot, diagram, image, or photo, or the figure has no
+usable text, or the question matches that figure's own caption, or it names
+something that appears in the figure. At most two images are sent. Run the CLI
+from the project root so image paths resolve.
 """
 
 from __future__ import annotations
@@ -22,7 +23,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
-from .retrieve import RetrievalResponse, RetrievedEvidence, format_citation
+from .retrieval.retrieve import RetrievalResponse, RetrievedEvidence, format_citation
+from .retrieval.tokenize import tokenize
 
 DEFAULT_MODEL = "gpt-5.4-mini"
 REASONING_EFFORT = "none"
@@ -36,13 +38,29 @@ _VISUAL_QUERY = re.compile(
     re.IGNORECASE,
 )
 _CHART_DATA = re.compile(r"^Chart data\b", re.MULTILINE)
+# CamelCase (SynthLLM), an alphanumeric token (8B), or an all-caps name (MATH).
+# An ordinary capitalised word such as "According" is not a name.
+_FIGURE_NAME = re.compile(r"\b[A-Z][a-z]+[A-Z][A-Za-z0-9]*\b|\b(?=\w*[A-Za-z])(?=\w*\d)\w+\b|\b[A-Z]{3,}\b")
+# Shared caption words below this also match a neighbouring chart.
+_CAPTION_OVERLAP = 4
 _JSON_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE)
 
 _SYSTEM = (
     "You answer questions about documents using only the evidence in the user message "
     "and any images attached for a named element id. If that evidence does not contain "
     "the answer, set sufficient to false and say what is missing. Do not use outside "
-    "knowledge or invent numbers, dates, or sources. Return a JSON object with keys "
+    "knowledge or invent numbers, dates, or sources. When the question refers to a "
+    "specific table, figure, or named source, do not include facts from other tables "
+    "unless the question explicitly asks for them. For a calculation, select values "
+    "that match the question's scope exactly, and verify the arithmetic from those "
+    "retrieved values. Before stating a largest or smallest result, compare every "
+    "relevant candidate in the evidence. Compare monetary amounts on the same "
+    "VAT-inclusive or VAT-exclusive basis. When the question names a specific "
+    "category, prefer evidence that matches that exact category rather than a "
+    "broader combined category. For a yes/no reconciliation, the opening conclusion "
+    "must agree with the arithmetic and the explanation. When reconciling amounts "
+    "across sources, include the component amounts, not only the final total. "
+    "Return a JSON object with keys "
     "answer (string), citations (list of element_id strings copied from the evidence), "
     "and sufficient (boolean)."
 )
@@ -125,11 +143,15 @@ def _cell_text(cell: Any) -> str:
 
 
 def format_table_text(element: dict[str, Any]) -> str:
-    """Pipe-separated grid. Empty cells are omitted, matching indexed table text."""
+    """Pipe-separated grid. Blank cells stay in place so each value keeps its column.
+
+    ``None`` is a merged-cell placeholder and is rendered as a blank cell, the same
+    way an empty string is. Dropping those cells shifts later values leftward.
+    """
     table = element.get("table") or {}
     grid = table.get("normalised_cells") or table.get("raw_cells") or []
-    lines = [" | ".join(text for text in (_cell_text(cell) for cell in row) if text) for row in grid]
-    text = "\n".join(line for line in lines if line).strip()
+    lines = [" | ".join(_cell_text(cell) for cell in row) for row in grid]
+    text = "\n".join(lines).strip("\n")
     if len(text) <= TABLE_CHAR_LIMIT:
         return text
     cut = text.rfind("\n", 0, TABLE_CHAR_LIMIT)
@@ -203,6 +225,31 @@ def _has_chart_data(content: str) -> bool:
     return _CHART_DATA.search(content or "") is not None
 
 
+def _content_terms(text: str) -> set[str]:
+    return {token for token in tokenize(text) if not token.isdigit() and len(token) > 2}
+
+
+def _figure_names(query: str) -> set[str]:
+    names: set[str] = set()
+    for match in _FIGURE_NAME.finditer(query):
+        names.update(_content_terms(match.group(0)))
+    return names
+
+
+def _figure_matches_question(query: str, content: str) -> bool:
+    """True when the question is about this image without using a visual keyword.
+
+    Caption overlap uses the figure's own words. Borrowed context counts only
+    when the question uses a specific name that appears there, so a neighbouring
+    sentence cannot pull in an unrelated image.
+    """
+    own = content.split("\nContext:", 1)[0]
+    if len(_content_terms(query) & _content_terms(own)) >= _CAPTION_OVERLAP:
+        return True
+    names = _figure_names(query)
+    return bool(names) and bool(names & _content_terms(content))
+
+
 def figure_image_candidates(query: str, results: list[RetrievedEvidence], retriever) -> list[tuple[str, str]]:
     """(element_id, image_path) that need vision, in result order, before the file and count limits."""
     visual = _visual_question(query)
@@ -212,7 +259,7 @@ def figure_image_candidates(query: str, results: list[RetrievedEvidence], retrie
     def add(element_id: str, path: str | None, content: str, low_text: bool) -> None:
         if not path or element_id in seen or _has_chart_data(content):
             return
-        if not (low_text or visual):
+        if not low_text and not visual and not _figure_matches_question(query, content):
             return
         seen.add(element_id)
         chosen.append((element_id, path))

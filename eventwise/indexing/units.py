@@ -23,8 +23,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .captions import find_label_mentions, label_key, mention_offsets
-from .config import IndexConfig
+from ..extraction.captions import find_label_mentions, label_key, mention_offsets
+from ..config import IndexConfig
 
 UNITS_VERSION = "units-v3"  # bump when unit construction changes, to invalidate cached embeddings
 

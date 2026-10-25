@@ -9,11 +9,11 @@ import docx
 import numpy as np
 
 from eventwise.config import IndexConfig
-from eventwise.embeddings import normalise_rows
-from eventwise.index import LoadedIndex
+from eventwise.indexing.embeddings import normalise_rows
+from eventwise.indexing.index import LoadedIndex
+from eventwise.indexing.units import build_units
 from eventwise.models import CaptionMatch, Element, ExtractedDocument, FigureData, NormalisedCell, TableData
-from eventwise.tokenize import tokenize
-from eventwise.units import build_units
+from eventwise.retrieval.tokenize import tokenize
 
 
 class FakeEmbedder:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from .models import NormalisedCell
+from ..models import NormalisedCell
 
 _WHITESPACE = re.compile(r"\s+")
 

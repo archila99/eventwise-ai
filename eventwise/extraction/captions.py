@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .models import BBox
+from ..models import BBox
 
 FIGURE_WORDS = ("Figure", "FIGURE", "Fig.", "Fig", "Chart", "Graph", "Diagram", "Exhibit",
                 "Illustration", "Map", "Ffigur", "FFIGUR", "Siart", "Graff")

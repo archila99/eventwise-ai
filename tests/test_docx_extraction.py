@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from conftest import CREW, FESTIVAL, MULTI, extracted, require
-from eventwise.extract import extract_document
+from eventwise.extraction.extract import extract_document
 
 RISK_FORM = MULTI / "Travel-Risk-Assessment-Form-March-2026-v6.docx"
 ERA = MULTI / "ERA_Travel-01.docx"

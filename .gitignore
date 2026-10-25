@@ -69,10 +69,11 @@ eval/results/
 # ==========================================
 
 # Internal planning and handover documents
-EVALUATION_PLAN.md
-DATASET_ANALYSIS.md
-PROJECT_HANDOVER.md
-ARCHITECTURE_PLAN.md
+docs/EVALUATION_PLAN.md
+docs/DATASET_ANALYSIS.md
+docs/PROJECT_HANDOVER.md
+docs/ARCHITECTURE_PLAN.md
 
 # Ground-truth evaluation answers
 eval/retrieval_gold.json
+eval/qa_gold.json

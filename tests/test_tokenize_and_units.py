@@ -1,7 +1,7 @@
-from eventwise.captions import find_label_mentions, label_key
 from eventwise.config import IndexConfig
-from eventwise.tokenize import tokenize
-from eventwise.units import build_units, document_title, units_fingerprint
+from eventwise.extraction.captions import find_label_mentions, label_key
+from eventwise.indexing.units import build_units, document_title, units_fingerprint
+from eventwise.retrieval.tokenize import tokenize
 from retrieval_helpers import figure, make_doc, matched, table
 
 

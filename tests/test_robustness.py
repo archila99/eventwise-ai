@@ -4,7 +4,7 @@ import docx
 import pymupdf
 import pytest
 
-from eventwise.extract import extract_document, parse_page_spec
+from eventwise.extraction.extract import extract_document, parse_page_spec
 
 
 @pytest.mark.parametrize("name", ["broken.pdf", "broken.docx"])

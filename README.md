@@ -8,14 +8,40 @@ The competition documents stay on your machine. This repository contains the app
 
 The documents mix prose, tables, and figures. A useful answer has to say where a fact came from — a page, section, table, or figure — and it has to say when the documents do not contain the answer. EventWise searches the extracted documents locally, then asks a model to write the answer only from the passages it was given.
 
+## Repository
+
+```text
+eventwise-ai/
+├── eventwise/
+│   ├── extraction/          # PDF and DOCX parsing
+│   ├── indexing/            # Search units, MiniLM embeddings, on-disk index
+│   ├── retrieval/           # BM25 + dense search, fused rankings
+│   ├── answer.py            # Grounded GPT answers and citation checks
+│   ├── ask.py               # Command-line question answering
+│   ├── models.py            # Shared document dataclasses
+│   └── config.py            # Index and retrieval settings
+├── eval/                    # Retrieval and question-answering evaluation
+├── tests/                   # Offline tests
+├── analysis/                # Dataset inspection utilities
+├── docs/                    # Architecture notes and planning documents
+├── data/                    # Original documents (local, not committed)
+├── .cache/                  # Extracted documents, index, and embedding model
+├── README.md
+├── requirements.txt
+└── pytest.ini
+```
+
+FastAPI endpoints are not implemented. When they are added, they belong in `eventwise/api/`. The browser frontend is not implemented. When it is added, it belongs in `frontend/`.
+
 ## Architecture
 
-1. **Extraction.** PDF and DOCX files are split into headings, text, tables, and figures. Each element keeps its location. Figures are saved as PNG crops.
-2. **Local hybrid retrieval.** The elements are indexed with BM25 and with local MiniLM embeddings (`sentence-transformers/all-MiniLM-L6-v2`). A query searches both indexes and fuses the rankings with reciprocal rank fusion.
-3. **Answering.** `python -m eventwise.ask` sends the retrieved evidence to OpenAI (`gpt-5.4-mini` by default, reasoning effort `none`) and asks for a JSON answer with element IDs.
-4. **Citation validation.** An element ID is kept only when it was in the prompt. Result citations use the string built at retrieval time. Context citations are rebuilt from the indexed source metadata. A missing location is dropped rather than guessed.
+1. **Extraction** (`eventwise/extraction`). PDF and DOCX files are split into headings, text, tables, and figures. Each element keeps its location. Figures are saved as PNG crops.
+2. **Indexing** (`eventwise/indexing`). Extracted elements become searchable units and are embedded with local MiniLM (`sentence-transformers/all-MiniLM-L6-v2`). The index is incremental and stored under `.cache/index/`.
+3. **Retrieval** (`eventwise/retrieval`). A query searches BM25 and the embeddings, then fuses the rankings with reciprocal rank fusion.
+4. **Answering** (`eventwise/answer.py`). `python -m eventwise.ask` sends the retrieved evidence to OpenAI (`gpt-5.4-mini` by default, reasoning effort `none`) and asks for a JSON answer with element IDs.
+5. **Citation validation.** An element ID is kept only when it was in the prompt. Result citations use the string built at retrieval time. Context citations are rebuilt from the indexed source metadata. A missing location is dropped rather than guessed.
 
-Retrieval and indexing do not call OpenAI. The model sees the retrieved excerpts and, when a figure needs to be read, at most two images.
+Retrieval and indexing do not call OpenAI. The model sees the retrieved excerpts and, when a figure needs to be read, at most two images. `docs/ARCHITECTURE_PLAN.md` describes this pipeline and keeps the original design notes.
 
 ## Stack
 
@@ -26,7 +52,7 @@ Retrieval and indexing do not call OpenAI. The model sees the retrieved excerpts
 - python-dotenv for a local `.env` file
 - pytest
 
-There is no web UI, agent framework, or calculation tool.
+There is no web API, web UI, agent framework, or calculation tool yet.
 
 ## Install on macOS
 
@@ -65,15 +91,15 @@ Put the PDF and DOCX files in a local `data/` directory. That directory is gitig
 Build or update the index from the project root. This extracts any document that is not already extracted, then embeds new or changed documents. The first run can download MiniLM into `.cache/models/` if it is not already there.
 
 ```bash
-.venv/bin/python -m eventwise.index data/
+.venv/bin/python -m eventwise.indexing data/
 ```
 
 Useful variants:
 
 ```bash
-.venv/bin/python -m eventwise.extract data/ --out .cache/extracted
-.venv/bin/python -m eventwise.index data/ --rebuild
-.venv/bin/python -m eventwise.index data/ --prune
+.venv/bin/python -m eventwise.extraction data/ --out .cache/extracted
+.venv/bin/python -m eventwise.indexing data/ --rebuild
+.venv/bin/python -m eventwise.indexing data/ --prune
 ```
 
 `--rebuild` rewrites the embeddings. `--prune` drops indexed documents that are not under the paths you pass.
@@ -81,7 +107,7 @@ Useful variants:
 Inspect retrieval without calling the API:
 
 ```bash
-.venv/bin/python -m eventwise.retrieve "your question" -k 10 --doc "some-file.pdf" --kind table --mode hybrid
+.venv/bin/python -m eventwise.retrieval "your question" -k 10 --doc "some-file.pdf" --kind table --mode hybrid
 ```
 
 `--doc` and `--kind` can be repeated. `--mode` is `hybrid` (the default), `bm25`, or `dense`. `--json` prints the structured result.
@@ -126,9 +152,8 @@ That script reads `eval/retrieval_gold.json` and writes `eval/results/`. The res
 
 ## Limitations
 
-- Chart and figure answers have not been checked against the live API. The vision request is implemented and covered with mocked tests only.
 - Extraction does not OCR images. A value that exists only inside a figure is available to the model when that figure is one of the images attached to the question.
-- At most two images are sent. An image is attached when the question refers to a figure or chart, or when a retrieved figure has little or no text of its own. Native chart data that is already stored as text is not sent again as an image.
+- At most two images are sent. An image is attached when the question refers to a figure or chart, when a retrieved figure has little or no text of its own, or when the question matches that figure. Native chart data that is already stored as text is not sent again as an image.
 - Abstention is the model's reading of the evidence. Retrieval scores are not used as a cutoff.
 - Tables without ruling lines can be missed. There is no arithmetic tool; the model sees the table as text.
 - DOCX citations use paragraph, block, table, row, and column locations. Those files have no page numbers.

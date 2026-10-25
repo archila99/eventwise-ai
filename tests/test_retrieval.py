@@ -6,9 +6,9 @@ import numpy as np
 import pytest
 
 from eventwise.config import RetrievalConfig
-from eventwise.embeddings import cosine_scores, normalise_rows
-from eventwise.index import IndexStore, sync_index
-from eventwise.retrieve import HybridRetriever, KeywordIndex, reciprocal_rank_fusion, top_indices
+from eventwise.indexing.embeddings import cosine_scores, normalise_rows
+from eventwise.indexing.index import IndexStore, sync_index
+from eventwise.retrieval.retrieve import HybridRetriever, KeywordIndex, reciprocal_rank_fusion, top_indices
 from retrieval_helpers import FakeEmbedder, figure, loaded_index, make_doc, matched, table, write_docx
 
 BUDGET = "a" * 16
@@ -235,7 +235,7 @@ def _model_available() -> bool:
 
 @pytest.mark.skipif(not _model_available(), reason="all-MiniLM-L6-v2 not downloaded")
 def test_real_model_dimensions_and_similarity():
-    from eventwise.embeddings import SentenceTransformerEmbedder
+    from eventwise.indexing.embeddings import SentenceTransformerEmbedder
 
     emb = SentenceTransformerEmbedder(allow_download=False)
     v = emb.encode(["mileage rate per mile for car journeys", "reimbursement for driving a personal car",

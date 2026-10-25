@@ -1,7 +1,7 @@
 """Extraction entry point: dispatch by file type, never raise, save as JSON.
 
 Command line:
-    python -m eventwise.extract PATH [PATH ...] [--out DIR] [--pages 1-20,26]
+    python -m eventwise.extraction PATH [PATH ...] [--out DIR] [--pages 1-20,26]
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import sys
 import time
 from pathlib import Path
 
-from .models import ExtractedDocument
+from ..models import ExtractedDocument
 from .parsers import parse_docx, parse_pdf
 
 SUPPORTED = (".pdf", ".docx")

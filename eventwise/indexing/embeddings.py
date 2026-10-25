@@ -12,7 +12,7 @@ from typing import Protocol, Sequence
 
 import numpy as np
 
-from .config import DEFAULT_MODEL, DEFAULT_MODEL_DIR
+from ..config import DEFAULT_MODEL, DEFAULT_MODEL_DIR
 
 
 class Embedder(Protocol):

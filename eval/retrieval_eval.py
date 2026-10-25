@@ -27,9 +27,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from eventwise.config import RetrievalConfig  # noqa: E402
-from eventwise.embeddings import SentenceTransformerEmbedder  # noqa: E402
-from eventwise.index import IndexStore, sync_index  # noqa: E402
-from eventwise.retrieve import HybridRetriever  # noqa: E402
+from eventwise.indexing.embeddings import SentenceTransformerEmbedder  # noqa: E402
+from eventwise.indexing.index import IndexStore, sync_index  # noqa: E402
+from eventwise.retrieval.retrieve import HybridRetriever  # noqa: E402
 
 KS = (5, 10)
 
@@ -125,7 +125,7 @@ def build_timings(embedder, data_paths: list[str], extracted_dir: Path) -> dict:
         out["warm"] = {"seconds": time.perf_counter() - t, "reused": len(r.reused), "embedded": r.units_embedded}
 
         # Incremental: index everything except the largest document, then add it.
-        from eventwise.extract import collect_files
+        from eventwise.extraction.extract import collect_files
 
         files = collect_files(data_paths)
         largest = max(files, key=lambda p: p.stat().st_size)

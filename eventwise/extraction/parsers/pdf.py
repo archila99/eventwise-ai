@@ -16,7 +16,7 @@ from pathlib import Path
 import pymupdf
 
 from ..captions import Caption, match_by_geometry, parse_caption
-from ..models import (
+from ...models import (
     BBox,
     CaptionMatch,
     CellMerge,

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from conftest import AI_INDEX, CREW, FESTIVAL, MULTI, extracted, require
-from eventwise.extract import extract_document
+from eventwise.extraction.extract import extract_document
 
 BUDGET = FESTIVAL / "06_Commercial_and_Financial" / "14_Festival_Budget_2026_Actual_vs_Budget.pdf"
 POST_EVENT = FESTIVAL / "08_Reports" / "18_Post_Event_Report_2026.pdf"

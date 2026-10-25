@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from eventwise.extract import extract_document
+from eventwise.extraction.extract import extract_document
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 SINGLE = DATA / "1 - single document"

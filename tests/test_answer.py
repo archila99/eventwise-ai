@@ -8,10 +8,11 @@ from eventwise.answer import (
     MAX_IMAGES,
     TABLE_TRUNCATION_NOTE,
     answer_question,
+    format_table_text,
 )
 from eventwise.ask import main
-from eventwise.retrieve import ContextItem, RetrievalResponse, RetrievedEvidence, format_citation
-from eventwise.units import IndexUnit
+from eventwise.indexing.units import IndexUnit
+from eventwise.retrieval.retrieve import ContextItem, RetrievalResponse, RetrievedEvidence, format_citation
 
 PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
@@ -150,7 +151,44 @@ def test_prompt_includes_citation_content_and_context():
     assert [item.element_id for item in result.citations] == ["t1", "fig3"]
     assert result.citations[0].citation == "Budget.pdf — p. 1"
     assert result.citations[1].citation == expected
-    assert "JSON" in client.kwargs["messages"][0]["content"]
+    system = client.kwargs["messages"][0]["content"]
+    assert "JSON" in system
+    assert "specific table, figure, or named source" in system
+    assert "do not include facts from other tables" in system
+    assert "unless the question explicitly asks for them" in system
+    assert "set sufficient to false" in system
+    assert "citations (list of element_id strings copied from the evidence)" in system
+
+
+def test_calculation_prompt_checks_scope_arithmetic_comparison_and_vat():
+    retriever = FakeRetriever([evidence()])
+    client = FakeClient(model_json())
+    ask(retriever, client, query="Which line had the largest share, and do the totals match?")
+    system = client.kwargs["messages"][0]["content"]
+    assert "match the question's scope exactly" in system
+    assert "verify the arithmetic from those retrieved values" in system
+    assert "largest or smallest" in system
+    assert "compare every relevant candidate" in system
+    assert "VAT-inclusive or VAT-exclusive" in system
+    assert "set sufficient to false" in system
+    assert "citations (list of element_id strings copied from the evidence)" in system
+    assert "176400" not in system
+    assert "18.7" not in system
+
+
+def test_prompt_prefers_exact_category_and_a_consistent_reconciliation():
+    retriever = FakeRetriever([evidence()])
+    client = FakeClient(model_json())
+    ask(retriever, client, query="Does the stated total match the parts?")
+    system = client.kwargs["messages"][0]["content"]
+    assert "exact category rather than a broader combined category" in system
+    assert "opening conclusion must agree with the arithmetic and the explanation" in system
+    assert "include the component amounts, not only the final total" in system
+    assert "largest or smallest" in system
+    assert "set sufficient to false" in system
+    assert "citations (list of element_id strings copied from the evidence)" in system
+    assert "25.2" not in system
+    assert "168,000" not in system
 
 
 def test_result_citation_is_not_rebuilt_from_the_index_unit():
@@ -181,6 +219,57 @@ def test_table_grid_is_used_for_a_partial_hit():
     assert "PARTIAL ROW" not in text
     assert text.count("Table 3: Expenditure") == 1
     assert "Matched rows 2-2 of 3" in text
+
+
+def test_sparse_checkmark_table_keeps_empty_cells_under_their_columns():
+    columns = ["Benchmark", "Model A", "Model B", "Model C"]
+    grid = [
+        [{"text": name} for name in columns],
+        [{"text": "BBQ"}, {"text": ""}, {"text": ""}, {"text": "✓"}],
+        [{"text": "Cybench"}, {"text": ""}, {"text": " "}, {"text": "✓"}],
+        [{"text": "SimpleQA"}, {"text": ""}, {"text": "✓"}, {"text": "✓"}],
+        [{"text": "StrongREJECT"}, {"text": "✓"}, {"text": ""}, {"text": ""}],
+    ]
+    hit = evidence(
+        kind="table", citation="Report.pdf — p. 135 — Figure 3.2.4", content="BBQ | ✓",
+        caption="Figure 3.2.4",
+    )
+    retriever = FakeRetriever([hit], elements={"t1": {"table": {"normalised_cells": grid}}})
+    client = FakeClient(model_json())
+    ask(retriever, client)
+    lines = user_text(client.kwargs).splitlines()
+    assert "[t1] table" in lines
+    assert "Benchmark | Model A | Model B | Model C" in lines
+    assert "BBQ |  |  | ✓" in lines
+    assert "Cybench |  |  | ✓" in lines
+    assert "SimpleQA |  | ✓ | ✓" in lines
+    assert "StrongREJECT | ✓ |  | " in lines
+    assert "BBQ | ✓" not in lines
+    assert "Cybench | ✓" not in lines
+    assert all(line.count("|") == 3 for line in lines if line.startswith(("Benchmark", "BBQ", "Cybench", "SimpleQA", "StrongREJECT")))
+
+
+def test_format_table_text_keeps_blank_raw_cells_and_merged_placeholders():
+    raw = {
+        "table": {
+            "raw_cells": [
+                ["Benchmark", "Model A", "Model B"],
+                ["BBQ", "", "✓"],
+                ["HarmBench", "", ""],
+            ]
+        }
+    }
+    assert format_table_text(raw) == "Benchmark | Model A | Model B\nBBQ |  | ✓\nHarmBench |  | "
+
+    merged = {
+        "table": {
+            "normalised_cells": [
+                [{"text": "Item"}, None, {"text": "Cost"}],
+                [{"text": "Security"}, {"text": ""}, {"text": "£176,400"}],
+            ]
+        }
+    }
+    assert format_table_text(merged) == "Item |  | Cost\nSecurity |  | £176,400"
 
 
 def test_continuation_table_uses_its_own_source():
@@ -362,6 +451,62 @@ def test_visual_question_attaches_a_figure_that_already_has_text(tmp_path):
     client = FakeClient(model_json(citations=["fig112"]))
     ask(retriever, client, query="According to Figure 1.1.2, how many models came from the United States?")
     assert len(image_parts(client.kwargs)) == 1
+
+
+def test_temperature_question_attaches_the_matching_figure_without_a_visual_keyword(tmp_path):
+    image = write_png(tmp_path, "temp.png")
+    other = write_png(tmp_path, "crowd.png")
+    target = evidence(
+        "temp", kind="figure", low_text=False, image_path=image, rank=1,
+        content="Figure 3: Maximum daytime temperature on site.\nContext: Sunday saw the hottest conditions.",
+    )
+    crowd = evidence(
+        "crowd", kind="figure", low_text=False, image_path=other, rank=2,
+        content="Figure 2: Attendee headcount at 20:00 on each festival day.\nContext: The site was busy.",
+    )
+    retriever = FakeRetriever([target, crowd])
+    client = FakeClient(model_json(citations=["temp"]))
+    result = ask(
+        retriever, client,
+        query="What was the maximum daytime temperature on site on Friday, and how did temperature change over the festival?",
+    )
+    assert result.images == ["temp"]
+    assert len(image_parts(client.kwargs)) == 1
+
+
+def test_named_benchmark_table_attaches_its_figure_without_a_visual_keyword(tmp_path):
+    image = write_png(tmp_path, "synth.png")
+    other = write_png(tmp_path, "mteb.png")
+    unrelated = evidence(
+        "mteb", kind="figure", low_text=False, image_path=other, rank=4,
+        content="Figure 2.2.48\nText in figure: Average task score\nContext: benchmark results for several models.",
+    )
+    target = evidence(
+        "synth", kind="figure", low_text=False, image_path=image, rank=5,
+        content="Figure 1.1.15\nContext: the SYNTHLLM family of models lags on major benchmarks.",
+    )
+    retriever = FakeRetriever([unrelated, target])
+    client = FakeClient(model_json(citations=["synth"]))
+    result = ask(
+        retriever, client,
+        query="In the SynthLLM benchmark table, which model scored highest on MATH, and what was SynthLLM-8B (7.4M)'s average?",
+    )
+    assert result.images == ["synth"]
+    assert len(image_parts(client.kwargs)) == 1
+
+
+def test_text_question_does_not_attach_a_figure_mentioned_only_in_borrowed_context(tmp_path):
+    image = write_png(tmp_path, "spend.png")
+    figure = evidence(
+        "spend-fig", kind="figure", low_text=False, image_path=image,
+        content="Figure 2: Largest expenditure lines.\nContext: Security spend in the festival budget is listed in the table.",
+    )
+    retriever = FakeRetriever([evidence(content="Security cost £176,400."), figure])
+    client = FakeClient(model_json())
+    result = ask(retriever, client, query="What was the security spend in the festival budget?")
+    assert result.images == []
+    assert image_parts(client.kwargs) == []
+    assert isinstance(client.kwargs["messages"][1]["content"], str)
 
 
 def test_extracted_chart_data_is_not_sent_as_an_image(tmp_path):

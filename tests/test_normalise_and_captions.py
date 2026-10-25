@@ -1,7 +1,7 @@
 import pytest
 
-from eventwise.captions import match_by_adjacency, match_by_geometry, parse_caption
-from eventwise.normalise import clean_text, normalise_cell, parse_number
+from eventwise.extraction.captions import match_by_adjacency, match_by_geometry, parse_caption
+from eventwise.extraction.normalise import clean_text, normalise_cell, parse_number
 
 
 # X10: money / percentage parsing

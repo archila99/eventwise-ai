@@ -18,7 +18,7 @@ from docx.document import Document as DocxDocument
 from lxml import etree
 
 from ..captions import Caption, match_by_adjacency, parse_caption
-from ..models import (
+from ...models import (
     CaptionMatch,
     CellMerge,
     Element,

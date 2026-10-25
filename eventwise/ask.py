@@ -17,7 +17,7 @@ from pathlib import Path
 
 from .answer import DEFAULT_MODEL, GroundedAnswer, answer_question
 from .config import DEFAULT_INDEX_DIR
-from .retrieve import HybridRetriever
+from .retrieval.retrieve import HybridRetriever
 
 
 def _print_answer(result: GroundedAnswer) -> None:
@@ -61,8 +61,8 @@ def main(argv: list[str] | None = None) -> int:
 
     from openai import OpenAI
 
-    from .embeddings import SentenceTransformerEmbedder
-    from .index import IndexStore, IndexUnavailable
+    from .indexing.embeddings import SentenceTransformerEmbedder
+    from .indexing.index import IndexStore, IndexUnavailable
 
     try:
         index = IndexStore(args.index).load()

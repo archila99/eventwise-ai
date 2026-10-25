@@ -13,7 +13,7 @@ Documents are keyed by content hash (the Stage 1 ``doc_id``), so:
 - deleted files are dropped from the index.
 
 Command line:
-    python -m eventwise.index PATH [PATH ...] [--index DIR] [--extracted DIR] [--prune] [--rebuild]
+    python -m eventwise.indexing PATH [PATH ...] [--index DIR] [--extracted DIR] [--prune] [--rebuild]
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from typing import Any
 
 import numpy as np
 
-from .config import DEFAULT_EXTRACTED_DIR, DEFAULT_INDEX_DIR, IndexConfig
+from ..config import DEFAULT_EXTRACTED_DIR, DEFAULT_INDEX_DIR, IndexConfig
 from .embeddings import Embedder
 from .units import UNITS_VERSION, IndexUnit, build_units, units_fingerprint
 
@@ -40,7 +40,7 @@ FORMAT_VERSION = 1
 
 
 class IndexUnavailable(RuntimeError):
-    """The index is missing or unusable; rebuild it with ``python -m eventwise.index``."""
+    """The index is missing or unusable; rebuild it with ``python -m eventwise.indexing``."""
 
 
 def _atomic_write_bytes(target: Path, data: bytes) -> None:
@@ -100,7 +100,7 @@ class IndexStore:
     def read_manifest(self) -> dict[str, Any]:
         """Raises IndexUnavailable when missing or unreadable."""
         if not self.manifest_path.exists():
-            raise IndexUnavailable(f"No index at {self.root}. Build it with: python -m eventwise.index data/")
+            raise IndexUnavailable(f"No index at {self.root}. Build it with: python -m eventwise.indexing data/")
         try:
             manifest = json.loads(self.manifest_path.read_text())
         except (OSError, ValueError) as exc:
@@ -205,7 +205,7 @@ def _stat_key(path: Path) -> list[int]:
 
 
 def _load_or_extract(path: Path, doc_id: str, extracted_dir: Path, report: SyncReport) -> dict[str, Any] | None:
-    from .extract import extract_document, load_document_dict, save_document  # parsers load lazily
+    from ..extraction.extract import extract_document, load_document_dict, save_document  # parsers load lazily
 
     cached = extracted_dir / doc_id / "document.json"
     if cached.exists():
@@ -234,7 +234,7 @@ def sync_index(paths: list[str | Path], embedder: Embedder, index_dir: str | Pat
     ``prune=True`` also removes indexed documents that are not among ``paths``.
     Documents whose source file was deleted or edited are always updated.
     """
-    from .extract import collect_files, file_doc_id
+    from ..extraction.extract import collect_files, file_doc_id
 
     config = config or IndexConfig()
     store = IndexStore(index_dir)

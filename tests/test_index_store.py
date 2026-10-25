@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from eventwise.config import IndexConfig
-from eventwise.index import IndexStore, IndexUnavailable, sync_index
+from eventwise.indexing.index import IndexStore, IndexUnavailable, sync_index
 from retrieval_helpers import FakeEmbedder, write_docx
 
 
