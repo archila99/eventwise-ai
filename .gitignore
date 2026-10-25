@@ -1,0 +1,78 @@
+# ==========================================
+# EventWise AI - Git Ignore Configuration
+# ==========================================
+
+# Secrets and environment variables
+# Only .env.example should be committed
+.env
+.env.*
+!.env.example
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python caches and compiled files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Python build and packaging files
+*.egg-info/
+build/
+dist/
+
+# Local extraction and retrieval caches
+# Includes document JSON, images, embeddings and indexes
+.cache/
+
+# Operating system files
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*~
+
+# Logs and temporary files
+*.log
+*.tmp
+tmp/
+temp/
+
+# ==========================================
+# Private Competition Data
+# ==========================================
+
+# Original PDF and DOCX competition documents
+data/
+
+# Generated dataset analysis and extracted samples
+analysis/samples/
+analysis/inventory.json
+analysis/inventory_table.md
+
+# Evaluation outputs containing document excerpts
+eval/results/
+
+# ==========================================
+# Internal Development and Evaluation Notes
+# ==========================================
+
+# Internal planning and handover documents
+EVALUATION_PLAN.md
+DATASET_ANALYSIS.md
+PROJECT_HANDOVER.md
+ARCHITECTURE_PLAN.md
+
+# Ground-truth evaluation answers
+eval/retrieval_gold.json
