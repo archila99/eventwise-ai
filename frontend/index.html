@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EventWise AI</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <h1>EventWise AI</h1>
+      <p class="lede">Ask a question about the indexed documents. Each answer is tied to the passages it came from.</p>
+    </header>
+
+    <section class="add" aria-labelledby="add-heading">
+      <h2 id="add-heading">Add documents</h2>
+      <p class="hint">PDF and DOCX files join the one shared knowledge base, including files inside folders.</p>
+      <div class="actions">
+        <button id="add-files" type="button">Add files</button>
+        <button id="add-folder" type="button" class="secondary">Add folder</button>
+        <button id="upload" type="button" hidden>Upload</button>
+      </div>
+      <input id="file-input" type="file" accept=".pdf,.docx,application/pdf" multiple hidden>
+      <input id="folder-input" type="file" webkitdirectory multiple hidden>
+      <p id="selection" class="hint" hidden></p>
+      <ul id="file-list"></ul>
+      <p id="knowledge" class="knowledge" role="status"></p>
+    </section>
+
+    <form id="ask-form">
+      <label for="document">Document</label>
+      <select id="document" name="document">
+        <option value="">All documents</option>
+      </select>
+
+      <label for="question">Question</label>
+      <textarea id="question" name="question" rows="4" placeholder="What do the documents say?"></textarea>
+
+      <div class="actions">
+        <button id="ask" type="submit" disabled>Ask</button>
+        <p id="status" class="status" role="status" hidden>Searching the documents…</p>
+      </div>
+    </form>
+
+    <p id="error" class="error" role="alert" hidden></p>
+
+    <section id="result" hidden>
+      <h2>Answer</h2>
+      <p id="answer"></p>
+      <h2>Citations</h2>
+      <ul id="citations"></ul>
+      <p id="no-citations" hidden>No citations.</p>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

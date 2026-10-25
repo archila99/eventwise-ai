@@ -3,10 +3,14 @@
 # ==========================================
 
 # Secrets and environment variables
-# Only .env.example should be committed
+# Only .env.example should be committed.
+# A file already tracked by Git stays tracked until it is removed from the index.
 .env
 .env.*
 !.env.example
+credentials.json
+secrets.json
+*.pem
 
 # Python virtual environments
 .venv/
@@ -20,7 +24,11 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
+.tox/
+.nox/
 
 # Python build and packaging files
 *.egg-info/
@@ -40,14 +48,17 @@ Thumbs.db
 # IDE and editor files
 .idea/
 .vscode/
+.cursor/
 *.swp
 *~
+.ipynb_checkpoints/
 
 # Logs and temporary files
 *.log
 *.tmp
 tmp/
 temp/
+logs/
 
 # ==========================================
 # Private Competition Data
